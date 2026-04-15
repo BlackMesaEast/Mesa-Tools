@@ -1,0 +1,169 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --border: #2a2a2a;
+  --text: #e8e8e8;
+  --text-muted: #888;
+  --accent: #4f8ef7;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Nav ── */
+nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+nav .logo {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--accent);
+}
+
+nav a:not(.logo) {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+nav a:not(.logo):hover {
+  color: var(--text);
+}
+
+/* ── Page wrapper ── */
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+
+/* ── Index: hero ── */
+.hero {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.hero h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.hero p {
+  color: var(--text-muted);
+}
+
+/* ── Search ── */
+.search-wrap {
+  margin-bottom: 2rem;
+}
+
+.search-wrap input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.search-wrap input:focus {
+  border-color: var(--accent);
+}
+
+/* ── Tool grid ── */
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.tool-card {
+  display: block;
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  transition: border-color 0.15s, transform 0.1s;
+}
+
+.tool-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.tool-card h2 {
+  font-size: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.tool-card p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.tool-card[hidden] {
+  display: none;
+}
+
+.no-results {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 2rem 0;
+  display: none;
+}
+
+/* ── Tool page ── */
+.tool-header {
+  margin-bottom: 2rem;
+}
+
+.tool-header a {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 1rem;
+}
+
+.tool-header a:hover {
+  color: var(--text);
+}
+
+.tool-header h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.tool-header p {
+  color: var(--text-muted);
+}
+
+.tool-body {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+}
