@@ -8,3 +8,6 @@ Thumbs.db
 
 # Misc
 *.log
+
+# Environment
+.env
