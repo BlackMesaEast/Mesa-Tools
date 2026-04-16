@@ -61,7 +61,7 @@ if "!SOURCE:~-4!"==".zip" (
     ) else (
         echo 📦 Zipping file: !SOURCE!
     )
-    powershell -NoProfile -Command "$src=[IO.Path]::GetFullPath('!SOURCE!'); $dst='!TEMP_ZIP!'; $name=[IO.Path]::GetFileName($src); Add-Type -Assembly System.IO.Compression; Add-Type -Assembly System.IO.Compression.FileSystem; $zip=[IO.Compression.ZipFile]::Open($dst,'Create'); if([IO.Directory]::Exists($src)){Get-ChildItem $src -Recurse -File | ForEach-Object { $e=$name+'/'+$_.FullName.Substring($src.Length+1).Replace('\','/'); [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,$_.FullName,$e) | Out-Null }}else{[IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,$src,$name) | Out-Null}; $zip.Dispose()"
+    powershell -NoProfile -Command "$src=[IO.Path]::GetFullPath('!SOURCE!').TrimEnd('\','/'); $dst='!TEMP_ZIP!'; $name=[IO.Path]::GetFileName($src); Add-Type -Assembly System.IO.Compression; Add-Type -Assembly System.IO.Compression.FileSystem; $zip=[IO.Compression.ZipFile]::Open($dst,'Create'); if([IO.Directory]::Exists($src)){Get-ChildItem $src -Recurse -File | ForEach-Object { $e=$name+'/'+$_.FullName.Substring($src.Length+1).Replace('\','/'); [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,$_.FullName,$e) | Out-Null }}else{[IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,$src,$name) | Out-Null}; $zip.Dispose()"
 )
 
 if not exist "!TEMP_ZIP!" (
