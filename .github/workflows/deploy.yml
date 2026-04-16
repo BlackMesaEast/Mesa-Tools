@@ -1,0 +1,23 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat <<EOF > .env
+          AUTH_TOKEN=${{ secrets.AUTH_TOKEN }}
+          DEPLOY_URL=${{ secrets.DEPLOY_URL }}
+          PROFILE=${{ secrets.DEPLOY_PROFILE }}
+          SOURCE=src/
+          EOF
+
+      - name: Deploy
+        run: bash deploy.sh
