@@ -2,5 +2,7 @@
   "liveServer.settings.root": "src/",
   "liveServer.settings.file": "index.html",
   "liveServer.settings.port": 5500,
-  "liveServer.settings.donotShowInfoMsg": true
+  "liveServer.settings.donotShowInfoMsg": true,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
 }
