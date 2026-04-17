@@ -1,8 +1,8 @@
-.format-converter-colums{
-    display: flex;
-    flex-direction: column;
-    justify-self: center;
-    min-height: 100vh;
+.format-converter-colums {
+  display: flex;
+  flex-direction: column;
+  justify-self: center;
+  padding: 50px;
 }
 .upload-area {
   display: flex;
@@ -34,31 +34,27 @@
   opacity: 0.85;
 }
 
-.convert-text{
-    display: flex;
-    flex-direction: column;
-    justify-self: center;
+.convert-text {
+  display: flex;
+  flex-direction: column;
+  justify-self: center;
 }
 
 .convert-text p {
-    margin: 0.95rem;
+  margin: 0.95rem;
 }
 .convert-text select {
-    margin-bottom: 0.95rem;
+  margin-bottom: 0.95rem;
 }
 
 .upload-area:hover {
   border-color: var(--accent);
   color: var(--text);
 }
-.converter-name h2{
-    display: flex;
-    justify-self: center;
-    font-weight: bolder;
-    font-size: large;
-    margin-bottom: 10px
-}
-
-.tool-card{
-  margin-top: 60px
+.converter-name h2 {
+  display: flex;
+  justify-self: center;
+  font-weight: bolder;
+  font-size: large;
+  margin-bottom: 10px;
 }
