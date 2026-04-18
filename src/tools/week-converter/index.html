@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Week Converter — Mesa Tools</title>
+    <link rel="icon" type="image/svg+xml" href="/mesa-tools-logo.svg" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      html, body { overflow-x: hidden; }
+
+      .inputs {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .inputs input {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 0.95rem;
+        padding: 0;
+        height: 2.5rem;
+        padding-inline: 0.75rem;
+        outline: none;
+        transition: border-color 0.15s;
+        box-sizing: border-box;
+      }
+
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+
+      .input-group label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
+
+      .inputs input:focus {
+        border-color: var(--accent);
+      }
+
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        opacity: 1;
+      }
+
+      .divider {
+        width: 1px;
+        height: 2.5rem;
+        align-self: flex-end;
+        background: var(--border);
+      }
+
+      .week-number {
+        text-align: center;
+        font-size: 6rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--accent);
+        margin: 2rem 0;
+      }
+
+      .week-number span {
+        font-size: 1.5rem;
+        font-weight: 400;
+        color: var(--text-muted);
+        display: block;
+        margin-bottom: 0.5rem;
+      }
+
+      .days {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 0.5rem;
+      }
+
+      .day {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.75rem 0.25rem;
+        text-align: center;
+        min-width: 0;
+      }
+
+      @media (max-width: 480px) {
+        .inputs { gap: 0.4rem; flex-wrap: nowrap; align-items: flex-end; }
+        .inputs .input-group:first-child { flex: 1; min-width: 0; }
+        .inputs .input-group:first-child label { display: none; }
+        .inputs .input-group:first-child input { width: 100%; }
+        .inputs input[type="number"] { width: 4rem !important; }
+        .days { gap: 0.25rem; }
+        .day { padding: 0.5rem 0.15rem; border-radius: 6px; }
+        .day-name { font-size: 0.65rem; }
+        .day-date { font-size: 0.85rem; }
+        .day-month { font-size: 0.65rem; }
+        .week-number { font-size: 4rem; }
+      }
+
+      .day.today {
+        border-color: var(--accent);
+      }
+
+      .day-name {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-bottom: 0.25rem;
+      }
+
+      .day-date {
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      .day-month {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 0.15rem;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a class="logo" href="/">Mesa Tools</a>
+    </nav>
+
+    <main>
+      <div class="tool-header">
+        <a href="/">← Back to tools</a>
+        <h1>Week Converter</h1>
+        <p>Convert between week numbers and dates.</p>
+      </div>
+
+      <div class="tool-body">
+        <div class="inputs">
+          <div class="input-group">
+            <label>&nbsp;</label>
+            <input type="date" id="date-input" />
+          </div>
+          <div class="divider"></div>
+          <div class="input-group">
+            <label for="week-input">Week</label>
+            <input type="number" id="week-input" min="1" max="53" style="width:5rem;" />
+          </div>
+          <div class="input-group">
+            <label for="year-input">Year</label>
+            <input type="number" id="year-input" min="2000" max="2100" style="width:6rem;" />
+          </div>
+        </div>
+
+        <div class="week-number">
+          <span>Week</span>
+          <div id="week-display">—</div>
+        </div>
+
+        <div class="days" id="days"></div>
+      </div>
+    </main>
+
+    <script>
+      const dateInput = document.getElementById('date-input');
+      const weekInput = document.getElementById('week-input');
+      const yearInput = document.getElementById('year-input');
+      const weekDisplay = document.getElementById('week-display');
+      const daysEl = document.getElementById('days');
+
+      const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      function getWeekNumber(date) {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const day = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - day);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return { week: Math.ceil((((d - yearStart) / 86400000) + 1) / 7), year: d.getUTCFullYear() };
+      }
+
+      function getMondayOfWeek(week, year) {
+        const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+        const dow = simple.getUTCDay() || 7;
+        if (dow !== 1) simple.setUTCDate(simple.getUTCDate() - (dow - 1));
+        return simple;
+      }
+
+      function toLocalDateString(date) {
+        return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+      }
+
+      function render(week, year, monday) {
+        weekDisplay.textContent = week;
+        weekInput.value = week;
+        yearInput.value = year;
+
+        const todayStr = toLocalDateString(new Date());
+
+        daysEl.innerHTML = DAY_NAMES.map((name, i) => {
+          const d = new Date(monday);
+          d.setUTCDate(d.getUTCDate() + i);
+          const dateStr = toLocalDateString(d);
+          const isToday = dateStr === todayStr;
+          return `<div class="day${isToday ? ' today' : ''}">
+            <div class="day-name">${name}</div>
+            <div class="day-date">${d.getUTCDate()}</div>
+            <div class="day-month">${MONTH_NAMES[d.getUTCMonth()]}</div>
+          </div>`;
+        }).join('');
+      }
+
+      function fromDate(dateStr) {
+        const date = new Date(dateStr + 'T00:00:00Z');
+        const { week, year } = getWeekNumber(date);
+        const monday = getMondayOfWeek(week, year);
+        render(week, year, monday);
+      }
+
+      function fromWeekYear() {
+        const week = parseInt(weekInput.value);
+        const year = parseInt(yearInput.value);
+        if (!week || !year || week < 1 || week > 53) return;
+        const monday = getMondayOfWeek(week, year);
+        const dateStr = toLocalDateString(monday);
+        dateInput.value = dateStr;
+        render(week, year, monday);
+      }
+
+      dateInput.addEventListener('change', () => fromDate(dateInput.value));
+      weekInput.addEventListener('input', fromWeekYear);
+      yearInput.addEventListener('input', fromWeekYear);
+
+      // Default to today
+      const today = new Date();
+      const todayStr = toLocalDateString(today);
+      dateInput.value = todayStr;
+      fromDate(todayStr);
+    </script>
+  </body>
+</html>
