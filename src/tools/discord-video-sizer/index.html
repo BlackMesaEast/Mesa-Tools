@@ -20,25 +20,11 @@
       </div>
 
       <div class="tool-body">
-        <input type="file" id="videofile" accept="video/*" />
-        <p id="status" style="color: var(--text-muted); margin-top: 1rem"></p>
-        <button
-          id="btn"
-          onclick="convert()"
-          style="
-            margin-top: 1rem;
-            padding: 0.6rem 1.5rem;
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            cursor: pointer;
-          "
-          disabled
-        >
-          Convert
-        </button>
+        <label class="upload-area" id="upload-area">
+          <input type="file" id="videofile" accept="video/*" hidden />
+          <p id="upload-text">Click or drag a video here</p>
+        </label>
+        <p id="status" style="color: var(--text-muted)"></p>
       </div>
     </main>
 
@@ -48,7 +34,9 @@
       const ffmpeg = new FFmpeg();
 
       const status = document.getElementById('status');
-      const btn = document.getElementById('btn');
+      const fileInput = document.getElementById('videofile');
+      const uploadArea = document.getElementById('upload-area');
+      const uploadText = document.getElementById('upload-text');
 
       ffmpeg.on('log', ({ message }) => console.log(message));
       ffmpeg.on('progress', ({ progress }) => {
@@ -63,45 +51,68 @@
         workerURL: '/libs/ffmpeg/ffmpeg-core.worker.js',
       });
       status.textContent = 'Ready.';
-      btn.disabled = false;
 
-      window.convert = async () => {
-        const file = document.getElementById('videofile').files[0];
-        if (!file) return;
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+      });
+      uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+      });
 
-        // calculate bitrate to hit ~9MB (leaving headroom)
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (file) handleFile(file);
+      });
+
+      async function handleFile(file) {
+        uploadText.textContent = file.name;
+
+        const ext = file.name.split('.').pop() || 'mp4';
+        const inputName = `input.${ext}`;
+
         const duration = await getVideoDuration(file);
         const targetBits = 9 * 1024 * 1024 * 8;
-        const videoBitrate = Math.floor(targetBits / duration - 128000); // subtract 128k audio
+        const videoBitrate = Math.floor(targetBits / duration - 128000);
 
         status.textContent = `Duration: ${Math.round(duration)}s — targeting ${Math.round(videoBitrate / 1000)}k video bitrate`;
 
         const input = new Uint8Array(await file.arrayBuffer());
-        await ffmpeg.writeFile('input.mp4', input);
+        await ffmpeg.writeFile(inputName, input);
 
-        await ffmpeg.exec([
-          '-i',
-          'input.mp4',
-          '-preset',
-          'ultrafast',
-          '-b:v',
-          `${videoBitrate}`,
-          '-b:a',
-          '128k',
+        const code = await ffmpeg.exec([
+          '-i', inputName,
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-b:v', `${videoBitrate}`,
+          '-c:a', 'aac',
+          '-b:a', '128k',
           'output.mp4',
         ]);
 
+        if (code !== 0) {
+          status.textContent = 'Error — check the browser console for details.';
+          return;
+        }
+
         const output = await ffmpeg.readFile('output.mp4');
-        const url = URL.createObjectURL(
-          new Blob([output.buffer], { type: 'video/mp4' }),
-        );
+        if (!output || output.byteLength === 0) {
+          status.textContent = 'Error — output was empty.';
+          return;
+        }
+
+        const url = URL.createObjectURL(new Blob([output.buffer], { type: 'video/mp4' }));
         const a = document.createElement('a');
         a.href = url;
         a.download = file.name.replace(/\.[^.]+$/, '') + '_discord.mp4';
         a.click();
         URL.revokeObjectURL(url);
         status.textContent = 'Done!';
-      };
+      }
 
       function getVideoDuration(file) {
         return new Promise((resolve) => {

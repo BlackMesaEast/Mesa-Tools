@@ -1,20 +1,5 @@
 .upload-area {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px dashed var(--border);
-  border-radius: 8px;
-  padding: 2rem;
-  cursor: pointer;
-  transition: border-color 0.15s;
-  color: var(--text-muted);
-  font-size: 0.9rem;
   margin-bottom: 1.25rem;
-}
-
-.upload-area:hover {
-  border-color: var(--accent);
-  color: var(--text);
 }
 
 .convert-label {
