@@ -6,6 +6,12 @@
     <title>Discord Video Sizer — Mesa Tools</title>
     <link rel="icon" type="image/svg+xml" href="/mesa-tools-logo.svg" />
     <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .progress-wrap { margin-top: 1rem; }
+      .progress-meta { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+      .progress-track { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+      .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.2s; }
+    </style>
   </head>
   <body>
     <nav>
@@ -20,11 +26,19 @@
       </div>
 
       <div class="tool-body">
-        <label class="upload-area" id="upload-area">
+        <label class="upload-area" id="upload-area" style="opacity:0.4;pointer-events:none;">
           <input type="file" id="videofile" accept="video/*" hidden />
           <p id="upload-text">Click or drag a video here</p>
         </label>
-        <p id="status" style="color: var(--text-muted)"></p>
+        <div class="progress-wrap" id="progress-wrap" hidden>
+          <div class="progress-meta">
+            <span id="progress-label"></span>
+            <span id="progress-eta"></span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-bar"></div>
+          </div>
+        </div>
       </div>
     </main>
 
@@ -33,24 +47,35 @@
       const { FFmpeg } = FFmpegWASM;
       const ffmpeg = new FFmpeg();
 
-      const status = document.getElementById('status');
       const fileInput = document.getElementById('videofile');
       const uploadArea = document.getElementById('upload-area');
       const uploadText = document.getElementById('upload-text');
+      const progressWrap = document.getElementById('progress-wrap');
+      const progressBar = document.getElementById('progress-bar');
+      const progressLabel = document.getElementById('progress-label');
+      const progressEta = document.getElementById('progress-eta');
+
+      let encodeStart = 0;
 
       ffmpeg.on('log', ({ message }) => console.log(message));
       ffmpeg.on('progress', ({ progress }) => {
-        const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
-        status.textContent = `Encoding… ${pct}%`;
+        const pct = Math.min(1, Math.max(0, progress));
+        progressBar.style.width = `${Math.round(pct * 100)}%`;
+        progressLabel.textContent = `Encoding… ${Math.round(pct * 100)}%`;
+        if (pct > 0.01) {
+          const elapsed = (Date.now() - encodeStart) / 1000;
+          const eta = Math.round(elapsed / pct - elapsed);
+          progressEta.textContent = eta > 0 ? `${eta}s remaining` : '';
+        }
       });
 
-      status.textContent = 'Loading ffmpeg…';
       await ffmpeg.load({
         coreURL: '/libs/ffmpeg/ffmpeg-core.js',
         wasmURL: '/libs/ffmpeg/ffmpeg-core.wasm',
         workerURL: '/libs/ffmpeg/ffmpeg-core.worker.js',
       });
-      status.textContent = 'Ready.';
+      uploadArea.style.opacity = '';
+      uploadArea.style.pointerEvents = '';
 
       uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -79,7 +104,11 @@
         const targetBits = 9 * 1024 * 1024 * 8;
         const videoBitrate = Math.floor(targetBits / duration - 128000);
 
-        status.textContent = `Duration: ${Math.round(duration)}s — targeting ${Math.round(videoBitrate / 1000)}k video bitrate`;
+        progressWrap.hidden = false;
+        progressBar.style.width = '0%';
+        progressLabel.textContent = `${Math.round(duration)}s — targeting ${Math.round(videoBitrate / 1000)}k video bitrate`;
+        progressEta.textContent = '';
+        encodeStart = Date.now();
 
         const input = new Uint8Array(await file.arrayBuffer());
         await ffmpeg.writeFile(inputName, input);
@@ -89,19 +118,24 @@
           '-c:v', 'libx264',
           '-preset', 'ultrafast',
           '-b:v', `${videoBitrate}`,
+          '-maxrate', `${videoBitrate}`,
+          '-bufsize', `${videoBitrate * 2}`,
+          '-vf', "scale='min(1920,iw)':-2",
           '-c:a', 'aac',
           '-b:a', '128k',
           'output.mp4',
         ]);
 
         if (code !== 0) {
-          status.textContent = 'Error — check the browser console for details.';
+          progressLabel.textContent = 'Error — check the browser console for details.';
+          progressEta.textContent = '';
           return;
         }
 
         const output = await ffmpeg.readFile('output.mp4');
         if (!output || output.byteLength === 0) {
-          status.textContent = 'Error — output was empty.';
+          progressLabel.textContent = 'Error — output was empty.';
+          progressEta.textContent = '';
           return;
         }
 
@@ -111,7 +145,10 @@
         a.download = file.name.replace(/\.[^.]+$/, '') + '_discord.mp4';
         a.click();
         URL.revokeObjectURL(url);
-        status.textContent = 'Done!';
+
+        progressBar.style.width = '100%';
+        progressLabel.textContent = 'Done!';
+        progressEta.textContent = '';
       }
 
       function getVideoDuration(file) {
