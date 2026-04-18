@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Discord Video Sizer — Mesa Tools</title>
+    <link rel="icon" type="image/svg+xml" href="/mesa-tools-logo.svg" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <nav>
+      <a class="logo" href="/">Mesa Tools</a>
+    </nav>
+
+    <main>
+      <div class="tool-header">
+        <a href="/">← Back to tools</a>
+        <h1>Discord Video Sizer</h1>
+        <p>Resize videos for Discord so they are under the 10MB file limit</p>
+      </div>
+
+      <div class="tool-body">
+        <!-- Tool UI goes here -->
+        <p style="color: var(--text-muted)"></p>
+      </div>
+    </main>
+
+    <script src="/libs/ffmpeg/ffmpeg.js"></script>
+    <script type="module">
+      const { FFmpeg } = FFmpegWASM;
+      const ffmpeg = new FFmpeg();
+
+      ffmpeg.on('log', ({ message }) => console.log(message));
+      ffmpeg.on('progress', ({ progress }) => console.log(progress));
+
+      await ffmpeg.load({
+        coreURL: '/libs/ffmpeg/ffmpeg-core.js',
+        wasmURL: '/libs/ffmpeg/ffmpeg-core.wasm',
+        workerURL: '/libs/ffmpeg/ffmpeg-core.worker.js',
+      });
+    </script>
+  </body>
+</html>
