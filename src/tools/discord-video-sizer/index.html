@@ -126,6 +126,8 @@
           'output.mp4',
         ]);
 
+        await ffmpeg.deleteFile(inputName);
+
         if (code !== 0) {
           progressLabel.textContent = 'Error — check the browser console for details.';
           progressEta.textContent = '';
@@ -133,6 +135,8 @@
         }
 
         const output = await ffmpeg.readFile('output.mp4');
+        await ffmpeg.deleteFile('output.mp4');
+
         if (!output || output.byteLength === 0) {
           progressLabel.textContent = 'Error — output was empty.';
           progressEta.textContent = '';
@@ -154,8 +158,12 @@
       function getVideoDuration(file) {
         return new Promise((resolve) => {
           const video = document.createElement('video');
-          video.src = URL.createObjectURL(file);
-          video.onloadedmetadata = () => resolve(video.duration);
+          const url = URL.createObjectURL(file);
+          video.src = url;
+          video.onloadedmetadata = () => {
+            URL.revokeObjectURL(url);
+            resolve(video.duration);
+          };
         });
       }
     </script>
