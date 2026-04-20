@@ -4,30 +4,53 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tournament Bracket — Mesa Tools</title>
-    <link rel="icon" type="image/svg+xml" href="/mesa-tools-logo.svg" />
-    <link rel="stylesheet" href="/styles.css" />
-  <style>
+    <link rel="stylesheet" href="../../styles.css" />
+    <style>
+        /* This is the magic for mixing HTML and p5 */
+    #bracket-canvas-container {
+      position: relative;
+      margin-top: 20px;
+      border: 2px solid #080072;
+      background: #000000;      
+      min-height: 400px;         
+      width: 800px;              
+    }
 
-
-  </style>
+    button
+    {
+      background-color: white;
+      border: 3px solid #080072; 
+      border-radius: 10px;
+      padding: 1px 6px;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    </style>
 </head>
 <body>
-  <nav>
-    <a class="logo" href="/">Mesa Tools</a>
-  </nav>
+    <nav>
+        <a class="logo" href="/">Mesa Tools</a>
+    </nav>
 
-  <main>
-    <div class="tool-header">
-      <a href="/">← Back to tools</a>
-      <h1>Example Tool</h1>
-      <p>A short description of what this tool does.</p>
-    </div>
+    <main>
+        <div class="tool-header">
+            <a href="/">← Back to tools</a>
+            <h1>Tournament Bracket</h1>
+        </div>
 
-    <div class="tool-body">
-      
-      <p style="color: var(--text-muted);">Tool content coming now.</p>
-    </div>
-  </main>
-  
+        <div class="tool-body">
+            <div id="controls">
+                <button onclick="addTeam()">Add Team</button>
+                <button onclick="resetBracket()">Reset</button>
+                <button onclick="goy()">Bracket </button>
+            </div>
+
+            <div id="bracket-canvas-container"></div>
+        </div>
+    </main>
+
+    <script src="../../libs/p5.min.js"></script>
+    <script src="sketch.js"></script>
 </body>
 </html>
