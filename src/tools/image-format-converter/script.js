@@ -1,75 +1,94 @@
-const { FFmpeg } = FFmpegWASM;
-const ffmpeg = new FFmpeg();
+const input = document.getElementById('imagefile')
+const uploadText = document.getElementById('upload-text')
+const fileNameEl = document.getElementById('file-name')
+const uploadArea = document.getElementById('upload-area')
+const formatSelect = document.getElementById('Formats')
 
-const input = document.getElementById('videofile');
-const convertBtn = document.getElementById('convertBtn');
-const progressWrap = document.getElementById('progress-wrap');
-const progressBar = document.getElementById('progress-bar');
-const progressLabel = document.getElementById('progress-label');
-const progressEta = document.getElementById('progress-eta');
-
-let encodeStart = 0;
-
-ffmpeg.on('progress', ({ progress }) => {
-  const pct = Math.min(1, Math.max(0, progress));
-  progressBar.style.width = `${Math.round(pct * 100)}%`;
-  progressLabel.textContent = `Converting… ${Math.round(pct * 100)}%`;
-  if (pct > 0.01) {
-    const elapsed = (Date.now() - encodeStart) / 1000;
-    const eta = Math.round(elapsed / pct - elapsed);
-    progressEta.textContent = eta > 0 ? `${eta}s remaining` : '';
-  }
-});
-
-input.addEventListener('change', function () {
-  const file = this.files[0];
-  if (!file) return;
-
-  document.getElementById('file-name').textContent = file.name;
-  document.getElementById('file-name').hidden = false;
-  document.getElementById('upload-text').hidden = true;
-});
-
-async function convertVideo() {
-  const file = input.files[0];
-  if (!file) return;
-
-  const format = document.getElementById('Formats').value;
-
-  progressWrap.hidden = false;
-  progressBar.style.width = '0%';
-  progressLabel.textContent = 'Loading FFmpeg...';
-  progressEta.textContent = '';
-
-  if (!ffmpeg.loaded) {
-    await ffmpeg.load({
-      coreURL: '/libs/ffmpeg/ffmpeg-core.js',
-      wasmURL: '/libs/ffmpeg/ffmpeg-core.wasm',
-      workerURL: '/libs/ffmpeg/ffmpeg-core.worker.js',
-    });
-  }
-
-  progressLabel.textContent = 'Converting...';
-  encodeStart = Date.now();
-
-  const inputName = file.name;
-  const outputName = `${inputName.replace(/\.[^.]+$/, '')}.${format}`;
-
-  const buffer = await file.arrayBuffer();
-  await ffmpeg.writeFile(inputName, new Uint8Array(buffer));
-  await ffmpeg.exec(['-i', inputName, outputName]);
-
-  const data = await ffmpeg.readFile(outputName);
-  const blob = new Blob([data.buffer], { type: `video/${format}` });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = outputName;
-  a.click();
-
-  URL.revokeObjectURL(url);
-  progressBar.style.width = '100%';
-  progressLabel.textContent = 'Done!';
-  progressEta.textContent = '';
+const MIME = {
+  JPEG: 'image/jpeg',
+  PNG: 'image/png',
+  WebP: 'image/webp',
+  AVIF: 'image/avif',
 }
+
+const EXT = {
+  JPEG: 'jpg',
+  PNG: 'png',
+  WebP: 'webp',
+  AVIF: 'avif',
+}
+
+let currentFile = null
+
+function loadFile(file) {
+  if (!file || !file.type.startsWith('image/')) return
+  currentFile = file
+  fileNameEl.textContent = file.name
+  fileNameEl.hidden = false
+  uploadText.hidden = true
+}
+
+input.addEventListener('change', (e) => loadFile(e.target.files[0]))
+
+;['dragenter', 'dragover'].forEach((ev) =>
+  uploadArea.addEventListener(ev, (e) => {
+    e.preventDefault()
+    uploadArea.classList.add('drag-over')
+  })
+)
+
+;['dragleave', 'drop'].forEach((ev) =>
+  uploadArea.addEventListener(ev, (e) => {
+    e.preventDefault()
+    uploadArea.classList.remove('drag-over')
+  })
+)
+
+uploadArea.addEventListener('drop', (e) => {
+  const file = e.dataTransfer.files[0]
+  if (file) {
+    input.files = e.dataTransfer.files
+    loadFile(file)
+  }
+})
+
+async function convertImage() {
+  if (!currentFile) return
+
+  const format = formatSelect.value
+  const mime = MIME[format]
+
+  const img = new Image()
+  img.src = URL.createObjectURL(currentFile)
+  await img.decode()
+
+  const canvas = document.createElement('canvas')
+  canvas.width = img.naturalWidth
+  canvas.height = img.naturalHeight
+  const ctx = canvas.getContext('2d')
+
+  if (mime === 'image/jpeg') {
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+  }
+  ctx.drawImage(img, 0, 0)
+  URL.revokeObjectURL(img.src)
+
+  const blob = await new Promise((resolve) =>
+    canvas.toBlob(resolve, mime, 0.92)
+  )
+  if (!blob) {
+    alert(`${format} encoding is not supported in this browser.`)
+    return
+  }
+
+  const baseName = currentFile.name.replace(/\.[^.]+$/, '')
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${baseName}.${EXT[format]}`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+window.convertImage = convertImage
