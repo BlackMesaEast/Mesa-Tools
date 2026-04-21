@@ -93,38 +93,94 @@
         if (file) handleFile(file);
       });
 
+      const RESOLUTIONS = [1920, 1280, 854, 640];
+      const FRAMERATES = [30, 24, 15];
+      const MIN_VIDEO_BITRATE = 80000;
+      const TARGET_BITS = 9 * 1024 * 1024 * 8;
+
+      function pickAudioBitrate(budgetBitsPerSec) {
+        if (budgetBitsPerSec > 500000) return { bitrate: 96000, mono: false };
+        if (budgetBitsPerSec > 200000) return { bitrate: 64000, mono: false };
+        if (budgetBitsPerSec > 100000) return { bitrate: 48000, mono: true };
+        return { bitrate: 32000, mono: true };
+      }
+
+      function pickSettings(duration, srcWidth) {
+        const budgetBitsPerSec = TARGET_BITS / duration;
+
+        for (const fps of FRAMERATES) {
+          for (const maxW of RESOLUTIONS.filter(w => w <= srcWidth)) {
+            const { bitrate: audioBitrate, mono } = pickAudioBitrate(budgetBitsPerSec);
+            const videoBitrate = Math.floor(budgetBitsPerSec) - audioBitrate;
+
+            if (videoBitrate >= MIN_VIDEO_BITRATE) {
+              return { videoBitrate, audioBitrate, maxW, fps, mono };
+            }
+          }
+        }
+
+        // absolute last resort
+        return {
+          videoBitrate: MIN_VIDEO_BITRATE,
+          audioBitrate: 32000,
+          maxW: 640,
+          fps: 15,
+          mono: true,
+        };
+      }
+
+      function getVideoInfo(file) {
+        return new Promise((resolve) => {
+          const video = document.createElement('video');
+          const url = URL.createObjectURL(file);
+          video.src = url;
+          video.onloadedmetadata = () => {
+            URL.revokeObjectURL(url);
+            resolve({
+              duration: video.duration,
+              width: video.videoWidth,
+              height: video.videoHeight,
+            });
+          };
+        });
+      }
+
       async function handleFile(file) {
         uploadText.textContent = file.name;
 
         const ext = file.name.split('.').pop() || 'mp4';
         const inputName = `input.${ext}`;
 
-        const duration = await getVideoDuration(file);
-        const targetBits = 9 * 1024 * 1024 * 8;
-        const videoBitrate = Math.floor(targetBits / duration - 128000);
+        const { duration, width } = await getVideoInfo(file);
+        const { videoBitrate, audioBitrate, maxW, fps, mono } = pickSettings(duration, width);
 
         progressWrap.hidden = false;
         progressBar.style.width = '0%';
-        progressLabel.textContent = `${Math.round(duration)}s — targeting ${Math.round(videoBitrate / 1000)}k video bitrate`;
+        progressLabel.textContent = `${Math.round(duration)}s — ${Math.round(videoBitrate / 1000)}k video / ${Math.round(audioBitrate / 1000)}k audio${mono ? ' mono' : ''} @ ${maxW}p${fps}`;
         progressEta.textContent = '';
         encodeStart = Date.now();
 
         const input = new Uint8Array(await file.arrayBuffer());
         await ffmpeg.writeFile(inputName, input);
 
-        const code = await ffmpeg.exec([
+        const args = [
           '-i', inputName,
           '-c:v', 'libx264',
           '-preset', 'ultrafast',
           '-b:v', `${videoBitrate}`,
           '-maxrate', `${videoBitrate}`,
           '-bufsize', `${videoBitrate * 2}`,
-          '-vf', "scale='min(1920,iw)':-2",
+          '-vf', `scale='min(${maxW},iw)':-2`,
+          '-r', `${fps}`,
           '-c:a', 'aac',
-          '-b:a', '128k',
-          'output.mp4',
-        ]);
+          '-b:a', `${audioBitrate}`,
+        ];
 
+        if (mono) args.push('-ac', '1');
+
+        args.push('output.mp4');
+
+        const code = await ffmpeg.exec(args);
         await ffmpeg.deleteFile(inputName);
 
         if (code !== 0) {
@@ -152,18 +208,6 @@
         progressBar.style.width = '100%';
         progressLabel.textContent = 'Done!';
         progressEta.textContent = '';
-      }
-
-      function getVideoDuration(file) {
-        return new Promise((resolve) => {
-          const video = document.createElement('video');
-          const url = URL.createObjectURL(file);
-          video.src = url;
-          video.onloadedmetadata = () => {
-            URL.revokeObjectURL(url);
-            resolve(video.duration);
-          };
-        });
       }
     </script>
   </body>
