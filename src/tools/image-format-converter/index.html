@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Format Converter – Mesa Tools</title>
+    <title>Image Format Converter – Mesa Tools</title>
     <link rel="icon" type="image/svg+xml" href="/mesa-tools-logo.svg" />
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="styles.css" />
@@ -15,12 +15,12 @@
     <main>
       <div class="tool-header">
         <a href="/">← Back to tools</a>
-        <h1>Format Converter</h1>
-        <p>Change a file from one format to another.</p>
+        <h1>Image Format Converter</h1>
+        <p>Change an image from one format to another.</p>
       </div>
       <div class="tool-body">
         <div class="tool-card">
-          <h2 style="margin-bottom: 1.25rem;">Image Converter</h2>
+          <h2 style="margin-bottom: 1.25rem">Image Converter</h2>
           <label class="upload-area">
             <input
               type="file"
@@ -28,7 +28,14 @@
               accept="image/png, image/jpeg, image/webp, image/gif, image/bmp, image/svg+xml"
               id="imagefile"
             />
-            <img id="preview" src="" alt="" hidden height="100px" width="150px" />
+            <img
+              id="preview"
+              src=""
+              alt=""
+              hidden
+              height="100px"
+              width="150px"
+            />
             <p id="upload-text">Click or drag a file here</p>
           </label>
           <span class="convert-label">Convert to</span>
@@ -39,7 +46,9 @@
             <option value="AVIF">AVIF</option>
           </select>
           <div class="convert-actions">
-            <button class="btn-convert" onclick="convertImage()">Convert</button>
+            <button class="btn-convert" onclick="convertImage()">
+              Convert
+            </button>
           </div>
         </div>
       </div>
