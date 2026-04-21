@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reaction Time — Mesa Tools</title>
+    <link rel="icon" type="image/svg+xml" href="/mesa-tools-logo.svg" />
+    <link rel="stylesheet" href="/styles.css" />
+
+    <style>
+      .Reaction-Screen {
+        background-color: rgb(83, 83, 216);
+        width: fill;
+        height: 550px;
+        position: relative;
+      }
+      .message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: x-large;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a class="logo" href="/">Mesa Tools</a>
+    </nav>
+
+    <main>
+      <div class="tool-header">
+        <a href="/">← Back to tools</a>
+        <h1>Reaction Time</h1>
+        <p>Simple Reaction Time Test</p>
+      </div>
+
+      <div class="tool-body">
+        <!-- Tool UI goes here -->
+
+        <div
+          class="Reaction-Screen"
+          id="Reaction-Screen"
+          onclick="reactionTimeTest()"
+        >
+          <div class="message" id="message">Click to start</div>
+        </div>
+      </div>
+    </main>
+    <script src="/tools/reaction-time/script.js"></script>
+  </body>
+</html>
