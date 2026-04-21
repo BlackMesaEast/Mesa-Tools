@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Color Picker — Mesa Tools</title>
+    <link rel="icon" type="image/svg+xml" href="/mesa-tools-logo.svg" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <nav>
+      <a class="logo" href="/">Mesa Tools</a>
+    </nav>
+
+    <main>
+      <div class="tool-header">
+        <a href="/">← Back to tools</a>
+        <h1>Color Picker</h1>
+        <p>Simple Color Picker Tool</p>
+      </div>
+
+      <div class="tool-body">
+        <!-- Tool UI goes here -->
+        <label class="upload-area">
+          <input type="file" hidden accept="image/*" id="imageUpload" />
+          <img id="preview" src="" alt="" hidden height="500px" width="100%" />
+          <p id="upload-text">Click or drag a file here</p>
+        </label>
+        <div style="display: flex; align-items: center">
+          <input
+            class="color"
+            type="color"
+            id="colorPicker"
+            value="#ff0000"
+            style="
+              background: transparent;
+              border: none;
+              width: 50px;
+              height: 50px;
+              cursor: pointer;
+            "
+          />
+          <button
+            onclick="mouseColorOnPixel()"
+            style="
+              background: transparent;
+              border: none;
+              cursor: pointer;
+              display: inline-flex;
+              justify-self: center;
+              align-items: center;
+              width: 25px;
+              height: 25px;
+              margin-left: 10px;
+            "
+          >
+            <img
+              src="/assets/eyedropper.png"
+              alt="Eyedropper"
+              style="width: 100%; height: 100%; filter: invert(100%)"
+            />
+          </button>
+        </div>
+        <div
+          style="display: flex; flex-direction: column; align-items: flex-start"
+        >
+          <p
+            style="
+              display: inline;
+              color: var(--text-muted);
+              border: 1px solid var(--text-muted);
+              padding: 0.25rem;
+              border-radius: 4px;
+              margin: 1rem;
+            "
+          >
+            HEX:
+            <span id="hexValue">#ff0000</span>
+            <button
+              class="btn-copy"
+              style="cursor: pointer"
+              onclick="copyToClipboard(this)"
+            >
+              Copy
+            </button>
+          </p>
+          <p
+            style="
+              display: inline;
+              color: var(--text-muted);
+              border: 1px solid var(--text-muted);
+              padding: 0.25rem;
+              border-radius: 4px;
+              margin: 1rem;
+            "
+          >
+            RGB:
+            <span id="rgbValue">(255, 0, 0)</span>
+            <button
+              class="btn-copy"
+              style="cursor: pointer"
+              onclick="copyToClipboard(this)"
+            >
+              Copy
+            </button>
+          </p>
+          <p
+            style="
+              display: inline;
+              color: var(--text-muted);
+              border: 1px solid var(--text-muted);
+              padding: 0.25rem;
+              border-radius: 4px;
+              margin: 1rem;
+            "
+          >
+            HSL:
+            <span id="hslValue">(0, 100%, 50%)</span>
+            <button
+              class="btn-copy"
+              style="cursor: pointer"
+              onclick="copyToClipboard(this)"
+            >
+              Copy
+            </button>
+          </p>
+        </div>
+      </div>
+    </main>
+    <script src="/tools/color-picker/script.js"></script>
+  </body>
+</html>
