@@ -4,7 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sorting Algorithm Visualizer — Mesa Tools</title>
-    <link rel="icon" type="image/svg+xml" href="/mesa-tools-logo.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="alternate icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
       .tool-body {
@@ -111,6 +114,7 @@
           <select id="algorithm">
             <option value="bubble">Bubble Sort</option>
             <option value="quick">Quick Sort</option>
+            <option value="merge">Merge Sort</option>
           </select>
           <div class="divider"></div>
           <div class="control-group">
@@ -248,6 +252,39 @@
         yield* quickSort(pivotIdx + 1, hi);
       }
 
+      function* mergeSort(lo = 0, hi = values.length - 1) {
+        if (lo >= hi) return;
+        const mid = (lo + hi) >> 1;
+        yield* mergeSort(lo, mid);
+        yield* mergeSort(mid + 1, hi);
+        yield* merge(lo, mid, hi);
+      }
+
+      function* merge(lo, mid, hi) {
+        const left = values.slice(lo, mid + 1);
+        const right = values.slice(mid + 1, hi + 1);
+        let i = 0,
+          j = 0,
+          k = lo;
+        while (i < left.length && j < right.length) {
+          yield { type: 'compare', a: k, b: k };
+          if (left[i] <= right[j]) values[k] = left[i++];
+          else values[k] = right[j++];
+          yield { type: 'overwrite', index: k };
+          k++;
+        }
+        while (i < left.length) {
+          values[k] = left[i++];
+          yield { type: 'overwrite', index: k };
+          k++;
+        }
+        while (j < right.length) {
+          values[k] = right[j++];
+          yield { type: 'overwrite', index: k };
+          k++;
+        }
+      }
+
       // ── Step driver ──
 
       function startSort() {
@@ -262,10 +299,16 @@
         sortGen =
           algo === 'bubble'
             ? bubbleSort()
-            : (function* () {
-                yield* quickSort();
-                yield { type: 'done' };
-              })();
+            : algo === 'merge'
+              ? (function* () {
+                  yield* mergeSort();
+                  yield { type: 'sorted', indices: [...values.keys()] };
+                  yield { type: 'done' };
+                })()
+              : (function* () {
+                  yield* quickSort();
+                  yield { type: 'done' };
+                })();
         document.querySelector('.controls .primary').textContent = 'Stop';
         scheduleTick();
       }
@@ -296,6 +339,9 @@
           ];
           barObjects[step.a].targetX = targetX(step.a);
           barObjects[step.b].targetX = targetX(step.b);
+        } else if (step.type === 'overwrite') {
+          swapIndices = [step.index];
+          barObjects[step.index].targetX = targetX(step.index);
         } else if (step.type === 'sorted')
           step.indices.forEach((i) => sortedIndices.add(i));
         else if (step.type === 'done') finishSort();
