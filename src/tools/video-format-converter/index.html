@@ -21,47 +21,44 @@
         <p>Change a video from one format to another.</p>
       </div>
       <div class="tool-body">
-        <div class="tool-card">
-          <h2 style="margin-bottom: 1.25rem">Video Converter</h2>
-          <label class="upload-area" id="upload-area">
-            <input
-              type="file"
-              hidden
-              accept="video/mp4,video/webm,video/x-matroska,video/x-msvideo,video/quicktime,video/mpeg"
-              id="videofile"
-            />
-            <p id="upload-text">Click or drag a video here</p>
-            <p id="file-name" hidden></p>
-          </label>
-          <span class="convert-label">Convert to</span>
-          <select name="Formats" id="Formats">
-            <option value="mp4">MP4</option>
-            <option value="webm">WebM</option>
-            <option value="avi">AVI</option>
-            <option value="mov">MOV</option>
-            <option value="mkv">MKV</option>
-            <option value="gif">GIF</option>
-          </select>
-          <div class="convert-actions">
-            <button
-              class="btn-convert"
-              id="convertBtn"
-              onclick="convertVideo()"
-            >
-              Convert
-            </button>
-          </div>
-          <div class="progress-wrap" id="progress-wrap" hidden>
-            <div class="progress-meta">
-              <span id="progress-label"></span>
-              <span id="progress-eta"></span>
-            </div>
-            <div class="progress-track">
-              <div class="progress-fill" id="progress-bar"></div>
-            </div>
-          </div>
-          <p id="status"></p>
+        <label class="upload-area" id="upload-area">
+          <input
+            type="file"
+            hidden
+            accept="video/mp4,video/webm,video/x-matroska,video/x-msvideo,video/quicktime,video/mpeg"
+            id="videofile"
+          />
+          <p id="upload-text">Click or drag a video here</p>
+          <p id="file-name" hidden></p>
+        </label>
+        <span class="convert-label">Convert to</span>
+        <select name="Formats" id="Formats">
+          <option value="mp4">MP4</option>
+          <option value="webm">WebM</option>
+          <option value="avi">AVI</option>
+          <option value="mov">MOV</option>
+          <option value="mkv">MKV</option>
+          <option value="gif">GIF</option>
+        </select>
+        <div class="convert-actions">
+          <button
+            class="btn-convert"
+            id="convertBtn"
+            onclick="convertVideo()"
+          >
+            Convert
+          </button>
         </div>
+        <div class="progress-wrap" id="progress-wrap" hidden>
+          <div class="progress-meta">
+            <span id="progress-label"></span>
+            <span id="progress-eta"></span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-bar"></div>
+          </div>
+        </div>
+        <p id="status"></p>
       </div>
     </main>
     <script src="/libs/ffmpeg/ffmpeg.js"></script>
