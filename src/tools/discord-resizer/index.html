@@ -39,8 +39,20 @@
       </div>
     </main>
 
+    <script type="importmap">
+      {
+        "imports": {
+          "mediabunny": "https://cdn.jsdelivr.net/npm/mediabunny@1.40.1/dist/bundles/mediabunny.mjs"
+        }
+      }
+    </script>
     <script src="/libs/ffmpeg/ffmpeg.js"></script>
     <script type="module">
+      import {
+        Input, Output, BlobSource, ALL_FORMATS, Mp4OutputFormat, BufferTarget,
+        Conversion, getFirstEncodableVideoCodec,
+      } from 'mediabunny';
+
       const { FFmpeg } = FFmpegWASM;
       const ffmpeg = new FFmpeg();
 
@@ -54,11 +66,11 @@
 
       let encodeStart = 0;
 
+      // --- FFmpeg WASM (fallback encoder) ---
       ffmpeg.on('log', ({ message }) => console.log(message));
       ffmpeg.on('progress', ({ progress }) => {
         const pct = Math.min(1, Math.max(0, progress));
         progressBar.style.width = `${Math.round(pct * 100)}%`;
-        progressLabel.textContent = `Encoding… ${Math.round(pct * 100)}%`;
         if (pct > 0.01) {
           const elapsed = (Date.now() - encodeStart) / 1000;
           const eta = Math.round(elapsed / pct - elapsed);
@@ -66,10 +78,8 @@
         }
       });
 
-      await ffmpeg.load({
-        coreURL: '/libs/ffmpeg/ffmpeg-core.js',
-        wasmURL: '/libs/ffmpeg/ffmpeg-core.wasm',
-      });
+      // Wait for FFmpeg WASM before enabling the UI.
+      await ffmpeg.load({ coreURL: '/libs/ffmpeg/ffmpeg-core.js', wasmURL: '/libs/ffmpeg/ffmpeg-core.wasm' });
       uploadArea.style.opacity = '';
       uploadArea.style.pointerEvents = '';
 
@@ -90,10 +100,9 @@
         if (file) handleFile(file);
       });
 
-      const RESOLUTIONS = [1920, 1280, 854, 640];
-      const FRAMERATES = [30, 24, 15];
-      const MIN_VIDEO_BITRATE = 80000;
-      const TARGET_BITS = 9 * 1024 * 1024 * 8;
+      const RESOLUTIONS = [1920, 1280, 854, 640, 426];
+      const MIN_VIDEO_BITRATE = 40000;
+      const TARGET_BITS = 8 * 1024 * 1024 * 8; // 8MB target — leaves 2MB margin below Discord's 10MB limit
 
       function pickAudioBitrate(budgetBitsPerSec) {
         if (budgetBitsPerSec > 500000) return { bitrate: 96000, mono: false };
@@ -104,26 +113,24 @@
 
       function pickSettings(duration, srcWidth) {
         const budgetBitsPerSec = TARGET_BITS / duration;
+        const { bitrate: audioBitrate, mono } = pickAudioBitrate(budgetBitsPerSec);
+        const videoBitrate = Math.max(MIN_VIDEO_BITRATE, Math.floor(budgetBitsPerSec) - audioBitrate);
 
-        for (const fps of FRAMERATES) {
-          for (const maxW of RESOLUTIONS.filter(w => w <= srcWidth)) {
-            const { bitrate: audioBitrate, mono } = pickAudioBitrate(budgetBitsPerSec);
-            const videoBitrate = Math.floor(budgetBitsPerSec) - audioBitrate;
+        // Drop fps at low video bitrates — fewer frames means more bits per frame
+        const fps = videoBitrate > 300000 ? 30 : videoBitrate > 100000 ? 24 : 15;
 
-            if (videoBitrate >= MIN_VIDEO_BITRATE) {
-              return { videoBitrate, audioBitrate, maxW, fps, mono };
-            }
+        // Pick the largest resolution where quality is acceptable.
+        // Heuristic: at least 0.15 bits per pixel per second for HEVC (assumes 16:9).
+        for (const maxW of RESOLUTIONS.filter(w => w <= srcWidth)) {
+          const pixelCount = maxW * Math.round(maxW * 9 / 16);
+          if (videoBitrate / pixelCount >= 0.15) {
+            return { videoBitrate, audioBitrate, maxW, fps, mono };
           }
         }
 
-        // absolute last resort
-        return {
-          videoBitrate: MIN_VIDEO_BITRATE,
-          audioBitrate: 32000,
-          maxW: 640,
-          fps: 15,
-          mono: true,
-        };
+        // Absolute last resort: smallest available resolution
+        const minW = Math.min(srcWidth, RESOLUTIONS[RESOLUTIONS.length - 1]);
+        return { videoBitrate, audioBitrate, maxW: minW, fps, mono };
       }
 
       function getVideoInfo(file) {
@@ -142,20 +149,95 @@
         });
       }
 
-      async function handleFile(file) {
-        uploadText.textContent = file.name;
+      async function encodeVideoWithMediabunny(file, { videoBitrate, maxW, fps }) {
+        const videoCodec = await getFirstEncodableVideoCodec(['hevc', 'avc']);
+        if (!videoCodec) throw new Error('mediabunny: no encodable video codec available');
 
+        const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+        const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });
+
+        const conversion = await Conversion.init({
+          input,
+          output,
+          video: (track) => ({
+            codec: videoCodec,
+            width: Math.min(maxW, track.displayWidth),
+            fit: 'contain',
+            bitrate: videoBitrate,
+            frameRate: fps,
+            forceTranscode: true,
+            hardwareAcceleration: 'prefer-hardware',
+          }),
+          audio: { discard: true },
+        });
+
+        if (!conversion.isValid) {
+          throw new Error('mediabunny: conversion is not valid');
+        }
+
+        conversion.onProgress = (pct) => {
+          progressBar.style.width = `${Math.round(pct * 100)}%`;
+          progressLabel.textContent = `Encoding video… ${Math.round(pct * 100)}%`;
+          if (pct > 0.01) {
+            const elapsed = (Date.now() - encodeStart) / 1000;
+            const eta = Math.round(elapsed / pct - elapsed);
+            progressEta.textContent = eta > 0 ? `${eta}s remaining` : '';
+          }
+        };
+
+        await conversion.execute();
+
+        const { buffer } = output.target;
+        if (!buffer || buffer.byteLength === 0) throw new Error('mediabunny: output was empty');
+
+        return buffer;
+      }
+
+      async function muxWithFFmpeg(videoBuffer, originalFile, { audioBitrate, mono }) {
+        const ext = originalFile.name.split('.').pop() || 'mp4';
+        const inputName = `input.${ext}`;
+
+        progressLabel.textContent = 'Encoding audio…';
+        progressBar.style.width = '0%';
+        progressEta.textContent = '';
+        encodeStart = Date.now();
+
+        await ffmpeg.writeFile('video.mp4', new Uint8Array(videoBuffer));
+        await ffmpeg.writeFile(inputName, new Uint8Array(await originalFile.arrayBuffer()));
+
+        const args = [
+          '-i', 'video.mp4',
+          '-i', inputName,
+          '-map', '0:v:0',
+          '-map', '1:a:0',
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', `${audioBitrate}`,
+        ];
+
+        if (mono) args.push('-ac', '1');
+
+        args.push('output.mp4');
+
+        const code = await ffmpeg.exec(args);
+        await ffmpeg.deleteFile('video.mp4');
+        await ffmpeg.deleteFile(inputName);
+
+        if (code !== 0) throw new Error('FFmpeg mux exited with code ' + code);
+
+        const output = await ffmpeg.readFile('output.mp4');
+        await ffmpeg.deleteFile('output.mp4');
+
+        if (!output || output.byteLength === 0) throw new Error('FFmpeg mux output was empty');
+
+        return output.buffer;
+      }
+
+      async function encodeWithFFmpeg(file, { videoBitrate, audioBitrate, maxW, fps, mono }) {
         const ext = file.name.split('.').pop() || 'mp4';
         const inputName = `input.${ext}`;
 
-        const { duration, width } = await getVideoInfo(file);
-        const { videoBitrate, audioBitrate, maxW, fps, mono } = pickSettings(duration, width);
-
-        progressWrap.hidden = false;
-        progressBar.style.width = '0%';
-        progressLabel.textContent = `${Math.round(duration)}s — ${Math.round(videoBitrate / 1000)}k video / ${Math.round(audioBitrate / 1000)}k audio${mono ? ' mono' : ''} @ ${maxW}p${fps}`;
-        progressEta.textContent = '';
-        encodeStart = Date.now();
+        progressLabel.textContent = 'Encoding…';
 
         const input = new Uint8Array(await file.arrayBuffer());
         await ffmpeg.writeFile(inputName, input);
@@ -180,22 +262,64 @@
         const code = await ffmpeg.exec(args);
         await ffmpeg.deleteFile(inputName);
 
-        if (code !== 0) {
-          progressLabel.textContent = 'Error — check the browser console for details.';
-          progressEta.textContent = '';
-          return;
-        }
+        if (code !== 0) throw new Error('FFmpeg exited with code ' + code);
 
         const output = await ffmpeg.readFile('output.mp4');
         await ffmpeg.deleteFile('output.mp4');
 
-        if (!output || output.byteLength === 0) {
-          progressLabel.textContent = 'Error — output was empty.';
-          progressEta.textContent = '';
-          return;
+        if (!output || output.byteLength === 0) throw new Error('FFmpeg output was empty');
+
+        return output.buffer;
+      }
+
+      async function handleFile(file) {
+        uploadText.textContent = file.name;
+
+        const { duration, width } = await getVideoInfo(file);
+        const settings = pickSettings(duration, width);
+        const { videoBitrate, audioBitrate, maxW, fps, mono } = settings;
+
+        progressWrap.hidden = false;
+        progressBar.style.width = '0%';
+        progressLabel.textContent = `${Math.round(duration)}s — ${Math.round(videoBitrate / 1000)}k video / ${Math.round(audioBitrate / 1000)}k audio${mono ? ' mono' : ''} @ ${maxW}p${fps}`;
+        progressEta.textContent = '';
+        encodeStart = Date.now();
+
+        let outputBuffer = null;
+
+        // Try hybrid path: mediabunny for video, FFmpeg for audio mux
+        if (typeof VideoEncoder !== 'undefined') {
+          try {
+            const videoBuffer = await encodeVideoWithMediabunny(file, settings);
+            // If mediabunny ignored the bitrate target and overshot, fall back to FFmpeg
+            // which enforces strict -maxrate. Allow 10% headroom above target.
+            const maxVideoBytes = TARGET_BITS / 8 * 1.1;
+            if (videoBuffer.byteLength > maxVideoBytes) {
+              throw new Error(`mediabunny video too large (${(videoBuffer.byteLength / 1e6).toFixed(1)}MB), falling back to FFmpeg`);
+            }
+            outputBuffer = await muxWithFFmpeg(videoBuffer, file, settings);
+          } catch (err) {
+            console.warn('Hybrid encode failed, falling back to full FFmpeg:', err);
+            progressLabel.textContent = 'Falling back to FFmpeg…';
+            progressBar.style.width = '0%';
+            progressEta.textContent = '';
+            encodeStart = Date.now();
+          }
         }
 
-        const url = URL.createObjectURL(new Blob([output.buffer], { type: 'video/mp4' }));
+        // FFmpeg fallback
+        if (outputBuffer === null) {
+          try {
+            outputBuffer = await encodeWithFFmpeg(file, settings);
+          } catch (err) {
+            progressLabel.textContent = 'Error — check the browser console for details.';
+            progressEta.textContent = '';
+            console.error(err);
+            return;
+          }
+        }
+
+        const url = URL.createObjectURL(new Blob([outputBuffer], { type: 'video/mp4' }));
         const a = document.createElement('a');
         a.href = url;
         a.download = file.name.replace(/\.[^.]+$/, '') + '_discord.mp4';
