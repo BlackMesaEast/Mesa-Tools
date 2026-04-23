@@ -1,7 +1,9 @@
 import { createServer } from 'http';
 import { watch, readFile } from 'fs';
-import { join, extname } from 'path';
+import { join, extname, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, 'src');
 const PORT = 5500;
 

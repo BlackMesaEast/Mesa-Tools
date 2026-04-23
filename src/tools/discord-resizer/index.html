@@ -24,7 +24,7 @@
 
       <div class="tool-body">
         <label class="upload-area" id="upload-area" style="opacity:0.4;pointer-events:none;">
-          <input type="file" id="videofile" accept="video/*" hidden />
+          <input type="file" id="videofile" accept="video/*" hidden disabled />
           <p id="upload-text">Click or drag a video here</p>
         </label>
         <div class="progress-wrap" id="progress-wrap" hidden>
@@ -78,10 +78,26 @@
         }
       });
 
-      // Wait for FFmpeg WASM before enabling the UI.
-      await ffmpeg.load({ coreURL: '/libs/ffmpeg/ffmpeg-core.js', wasmURL: '/libs/ffmpeg/ffmpeg-core.wasm' });
+      // Wait for FFmpeg WASM before enabling the UI. Race against a timeout so
+      // the upload area never stays permanently disabled if load stalls.
+      const LOAD_TIMEOUT_MS = 30000;
+      let loadError = null;
+      try {
+        await Promise.race([
+          ffmpeg.load({ coreURL: '/libs/ffmpeg/ffmpeg-core.js', wasmURL: '/libs/ffmpeg/ffmpeg-core.wasm' }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Encoder load timed out after ${LOAD_TIMEOUT_MS / 1000}s`)), LOAD_TIMEOUT_MS),
+          ),
+        ]);
+      } catch (err) {
+        loadError = err;
+        console.error('FFmpeg load failed:', err);
+        progressWrap.hidden = false;
+        progressLabel.textContent = 'Encoder failed to load — refresh to retry.';
+      }
       uploadArea.style.opacity = '';
       uploadArea.style.pointerEvents = '';
+      fileInput.disabled = false;
 
       uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -273,6 +289,11 @@
       }
 
       async function handleFile(file) {
+        if (loadError) {
+          progressWrap.hidden = false;
+          progressLabel.textContent = 'Encoder failed to load — refresh to retry.';
+          return;
+        }
         uploadText.textContent = file.name;
 
         const { duration, width } = await getVideoInfo(file);
