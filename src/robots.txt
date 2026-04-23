@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /libs/
+Disallow: /*.js$
+Disallow: /*.mjs$
+
+Sitemap: https://tools.blackmesa.dk/sitemap.xml
