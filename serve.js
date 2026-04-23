@@ -1,8 +1,8 @@
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+import { createServer } from 'http';
+import { watch, readFile } from 'fs';
+import { join, extname } from 'path';
 
-const ROOT = path.join(__dirname, 'src');
+const ROOT = join(__dirname, 'src');
 const PORT = 5500;
 
 const MIME = {
@@ -26,12 +26,12 @@ const RELOAD_SCRIPT = `<script>
 
 let clients = [];
 
-fs.watch(ROOT, { recursive: true }, () => {
+watch(ROOT, { recursive: true }, () => {
   clients.forEach(res => res.write('data: reload\n\n'));
   clients = [];
 });
 
-http.createServer((req, res) => {
+createServer((req, res) => {
   if (req.url === '/__reload') {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -48,8 +48,8 @@ http.createServer((req, res) => {
   let urlPath = req.url.split('?')[0];
   if (urlPath.endsWith('/')) urlPath += 'index.html';
 
-  const filePath = path.join(ROOT, urlPath);
-  const ext = path.extname(filePath);
+  const filePath = join(ROOT, urlPath);
+  const ext = extname(filePath);
   const contentType = MIME[ext] || 'application/octet-stream';
 
   const headers = {
@@ -59,7 +59,7 @@ http.createServer((req, res) => {
   };
 
   const serve = (file, type) => {
-    fs.readFile(file, (err, data) => {
+    readFile(file, (err, data) => {
       if (err) { res.writeHead(404, headers); res.end('Not found'); return; }
       const isHtml = (type || ext) === '.html';
       if (isHtml) data = Buffer.from(data.toString().replace('</body>', RELOAD_SCRIPT + '</body>'));
@@ -69,7 +69,7 @@ http.createServer((req, res) => {
   };
 
   if (!ext) {
-    fs.readFile(filePath + '/index.html', (err, data) => {
+    readFile(filePath + '/index.html', (err, data) => {
       if (err) { res.writeHead(404, headers); res.end('Not found'); return; }
       data = Buffer.from(data.toString().replace('</body>', RELOAD_SCRIPT + '</body>'));
       res.writeHead(200, { ...headers, 'Content-Type': 'text/html' });

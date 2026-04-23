@@ -3,14 +3,14 @@
 // Usage: node sitemap.js [baseUrl]
 // Default base URL: https://tools.blackmesa.dk
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import { readdirSync, existsSync, writeFileSync } from 'fs';
+import { join, relative } from 'path';
+import { execSync } from 'child_process';
 
 const BASE_URL = (process.argv[2] || 'https://tools.blackmesa.dk').replace(/\/$/, '');
-const SRC_DIR = path.join(__dirname, 'src');
-const TOOLS_DIR = path.join(SRC_DIR, 'tools');
-const OUT_FILE = path.join(SRC_DIR, 'sitemap.xml');
+const SRC_DIR = join(__dirname, 'src');
+const TOOLS_DIR = join(SRC_DIR, 'tools');
+const OUT_FILE = join(SRC_DIR, 'sitemap.xml');
 
 function gitLastModified(filePath) {
   try {
@@ -32,23 +32,23 @@ const today = new Date().toISOString().slice(0, 10);
 const pages = [
   {
     loc: `${BASE_URL}/`,
-    lastmod: gitLastModified(path.join(SRC_DIR, 'index.html')) ?? today,
+    lastmod: gitLastModified(join(SRC_DIR, 'index.html')) ?? today,
   },
 ];
 
 // Tool pages — discover by scanning src/tools/*/index.html
-const toolDirs = fs.readdirSync(TOOLS_DIR, { withFileTypes: true })
+const toolDirs = readdirSync(TOOLS_DIR, { withFileTypes: true })
   .filter(e => e.isDirectory())
   .map(e => e.name)
   .sort();
 
 for (const name of toolDirs) {
-  const indexFile = path.join(TOOLS_DIR, name, 'index.html');
-  if (!fs.existsSync(indexFile)) continue;
+  const indexFile = join(TOOLS_DIR, name, 'index.html');
+  if (!existsSync(indexFile)) continue;
 
   pages.push({
     loc: `${BASE_URL}/tools/${name}/`,
-    lastmod: gitLastModified(path.join(TOOLS_DIR, name)) ?? today,
+    lastmod: gitLastModified(join(TOOLS_DIR, name)) ?? today,
   });
 }
 
@@ -67,6 +67,6 @@ ${entries}
 </urlset>
 `;
 
-fs.writeFileSync(OUT_FILE, xml);
-console.log(`Written ${pages.length} URLs to ${path.relative(__dirname, OUT_FILE)}`);
+writeFileSync(OUT_FILE, xml);
+console.log(`Written ${pages.length} URLs to ${relative(__dirname, OUT_FILE)}`);
 pages.forEach(p => console.log(`  ${p.lastmod}  ${p.loc}`));
