@@ -4,8 +4,11 @@
 // Default base URL: https://tools.blackmesa.dk
 
 import { readdirSync, existsSync, writeFileSync } from 'fs';
-import { join, relative } from 'path';
+import { join, relative, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const BASE_URL = (process.argv[2] || 'https://tools.blackmesa.dk').replace(/\/$/, '');
 const SRC_DIR = join(__dirname, 'src');
