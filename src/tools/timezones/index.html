@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Timezones — Mesa Tools</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="alternate icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link
+      rel="alternate icon"
+      type="image/png"
+      sizes="32x32"
+      href="/favicon-32.png"
+    />
     <link rel="alternate icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="/styles.css" />
@@ -23,7 +28,557 @@
       </div>
 
       <div class="tool-body">
+        <div class="controls" id="controls"></div>
+        <div class="status" id="status">- live -</div>
+        <div class="tabs" id="tabs"></div>
+        <div class="zones" id="zones"></div>
+        <datalist id="tz-list"></datalist>
       </div>
     </main>
+
+    <style>
+      .controls {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .controls .field {
+        font: inherit;
+      }
+      #power {
+        flex: 1;
+        font-size: 1.4rem;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        border-radius: 0;
+        padding: 8px 2px;
+        color: var(--text);
+        transition: border-color 0.15s;
+      }
+      #power:focus {
+        outline: none;
+        border-bottom-color: var(--accent);
+      }
+      #power::placeholder {
+        opacity: 0.4;
+      }
+      #anchor {
+        min-width: 200px;
+      }
+      .status {
+        font-size: 0.85rem;
+        opacity: 0.7;
+        margin-bottom: 16px;
+        font-variant-numeric: tabular-nums;
+        min-height: 1.2em;
+      }
+      .status.live {
+        color: var(--accent);
+        opacity: 1;
+      }
+      .status.error {
+        color: #e55;
+        opacity: 1;
+      }
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 16px;
+        align-items: center;
+      }
+      .tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        background: transparent;
+        border: none;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        opacity: 0.55;
+        letter-spacing: 0.02em;
+        transition: opacity 0.15s;
+      }
+      .tab:hover {
+        opacity: 0.9;
+      }
+      .tab.home {
+        opacity: 0.8;
+      }
+      .tab button {
+        all: unset;
+        cursor: pointer;
+        opacity: 0;
+        font-size: 0.9rem;
+        line-height: 1;
+        padding: 0 2px;
+        transition: opacity 0.15s;
+      }
+      .tab:hover button {
+        opacity: 0.7;
+      }
+      .tab button:hover {
+        opacity: 1;
+      }
+      .tab-add input {
+        width: 150px;
+        padding: 2px 8px;
+        background: transparent;
+        border: none;
+        border-bottom: 1px dashed var(--border);
+        border-radius: 0;
+        color: var(--text);
+        font: inherit;
+        font-size: 0.75rem;
+        opacity: 0.7;
+      }
+      .tab-add input::placeholder {
+        opacity: 0.5;
+      }
+      .tab-add input:focus {
+        outline: none;
+        border-bottom-style: solid;
+        border-bottom-color: var(--accent);
+        opacity: 1;
+      }
+      .zones {
+        display: grid;
+        grid-template-columns: auto auto auto 1fr;
+        gap: 8px;
+      }
+      .zone {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        align-items: baseline;
+        gap: 16px;
+        padding: 12px 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .zone.home {
+        border-color: var(--accent);
+      }
+      .zone .name {
+        font-size: 0.85rem;
+        font-weight: 400;
+        opacity: 0.55;
+        text-align: left;
+        letter-spacing: 0.02em;
+      }
+      .zone .time {
+        font-variant-numeric: tabular-nums;
+        font-size: 1.6rem;
+        font-weight: 500;
+        text-align: left;
+        min-width: 5ch;
+      }
+      .zone .offset {
+        font-size: 0.8rem;
+        opacity: 0.55;
+        min-width: 4ch;
+        text-align: left;
+      }
+      .zone .offset.shift {
+        color: var(--accent);
+        opacity: 1;
+      }
+    </style>
+
+    <script>
+      const DEFAULT_ZONES = ['UTC', 'America/New_York', 'Asia/Tokyo'];
+      const STORAGE_KEY = 'mesa-timezones';
+      const ANCHOR_KEY = 'mesa-timezones-anchor';
+      const MIGRATED_UTC_KEY = 'mesa-timezones-migrated-utc';
+
+      const home = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const allZones =
+        typeof Intl.supportedValuesOf === 'function'
+          ? Intl.supportedValuesOf('timeZone')
+          : DEFAULT_ZONES;
+      const isMobile = window.matchMedia('(pointer: coarse)').matches;
+
+      function loadList() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          if (Array.isArray(saved) && saved.length) {
+            if (!localStorage.getItem(MIGRATED_UTC_KEY)) {
+              localStorage.setItem(MIGRATED_UTC_KEY, '1');
+              if (!saved.includes('UTC')) return ['UTC', ...saved];
+            }
+            return saved;
+          }
+        } catch {}
+        localStorage.setItem(MIGRATED_UTC_KEY, '1');
+        return [
+          'UTC',
+          home,
+          ...DEFAULT_ZONES.filter((z) => z !== home && z !== 'UTC'),
+        ];
+      }
+      function saveList() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      }
+      let list = loadList();
+
+      let anchor = localStorage.getItem(ANCHOR_KEY) || home;
+      if (!allZones.includes(anchor)) anchor = home;
+
+      const controlsEl = document.getElementById('controls');
+      const zonesEl = document.getElementById('zones');
+      const tabsEl = document.getElementById('tabs');
+      const statusEl = document.getElementById('status');
+      const datalist = document.getElementById('tz-list');
+
+      for (const tz of allZones) {
+        const opt = document.createElement('option');
+        opt.value = tz;
+        datalist.appendChild(opt);
+      }
+
+      function label(tz) {
+        return tz.split('/').pop().replace(/_/g, ' ');
+      }
+
+      // parse { hh, mm } from a time token; null if not a time
+      function parseTimeToken(s) {
+        s = s.toLowerCase().replace(/\s+/g, '');
+        if (!s) return null;
+        const ampm = s.match(/^(\d{1,2})(?:[:.](\d{1,2}))?(am|pm)$/);
+        if (ampm) {
+          let h = +ampm[1];
+          const m = +(ampm[2] ?? 0);
+          if (h < 1 || h > 12 || m > 59) return null;
+          if (ampm[3] === 'pm' && h !== 12) h += 12;
+          if (ampm[3] === 'am' && h === 12) h = 0;
+          return { h, m };
+        }
+        const hm = s.match(/^(\d{1,2})[:.](\d{1,2})$/);
+        if (hm) {
+          const h = +hm[1],
+            m = +hm[2];
+          if (h > 23 || m > 59) return null;
+          return { h, m };
+        }
+        const compact = s.match(/^(\d{3,4})$/);
+        if (compact) {
+          const n = compact[1];
+          const h = +n.slice(0, -2),
+            m = +n.slice(-2);
+          if (h > 23 || m > 59) return null;
+          return { h, m };
+        }
+        const hourOnly = s.match(/^(\d{1,2})$/);
+        if (hourOnly) {
+          const h = +hourOnly[1];
+          if (h > 23) return null;
+          return { h, m: 0 };
+        }
+        return null;
+      }
+
+      const ZONE_ALIASES = {
+        nyc: 'America/New_York',
+        ny: 'America/New_York',
+        la: 'America/Los_Angeles',
+        sf: 'America/Los_Angeles',
+        cph: 'Europe/Copenhagen',
+        ldn: 'Europe/London',
+        uk: 'Europe/London',
+        utc: 'UTC',
+        gmt: 'UTC',
+      };
+
+      function resolveZone(q) {
+        if (!q) return null;
+        const norm = (s) => s.toLowerCase().replace(/[_\s]+/g, '');
+        const n = norm(q);
+        if (ZONE_ALIASES[n]) return ZONE_ALIASES[n];
+        const exact = allZones.find(
+          (z) => norm(z) === n || norm(label(z)) === n,
+        );
+        if (exact) return exact;
+        const preferred = list.find((z) => norm(label(z)).startsWith(n));
+        if (preferred) return preferred;
+        const starts = allZones.find(
+          (z) => norm(label(z)).startsWith(n) || norm(z).endsWith(n),
+        );
+        if (starts) return starts;
+        const contains = allZones.find(
+          (z) => norm(z).includes(n) || norm(label(z)).includes(n),
+        );
+        return contains || null;
+      }
+
+      function parsePower(raw) {
+        const s = raw.trim().toLowerCase();
+        if (!s || s === 'now') return { live: true };
+
+        const whole = parseTimeToken(s);
+        if (whole) return { ...whole, zone: anchor };
+
+        const parts = s.split(/\s+|,/).filter(Boolean);
+        if (parts.length >= 2) {
+          const t = parseTimeToken(parts[0]);
+          if (!t) return { error: `can't parse "${parts[0]}" as time` };
+          // strip leading "in" / "at"
+          let zoneQ = parts.slice(1).join(' ');
+          zoneQ = zoneQ.replace(/^(in|at)\s+/, '');
+          const zone = resolveZone(zoneQ);
+          if (!zone) return { error: `unknown zone "${zoneQ}"` };
+          return { ...t, zone };
+        }
+
+        return { error: `can't parse "${raw}"` };
+      }
+
+      function wallToDate(h, m, tz) {
+        const now = new Date();
+        const ymdStr = new Intl.DateTimeFormat('en-CA', {
+          timeZone: tz,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(now);
+        const guess = new Date(
+          `${ymdStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00Z`,
+        );
+        const parts = new Intl.DateTimeFormat('en-GB', {
+          timeZone: tz,
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+        }).formatToParts(guess);
+        const wh = +parts.find((p) => p.type === 'hour').value;
+        const wm = +parts.find((p) => p.type === 'minute').value;
+        let diffMin = h * 60 + m - (wh * 60 + wm);
+        if (diffMin > 12 * 60) diffMin -= 24 * 60;
+        if (diffMin < -12 * 60) diffMin += 24 * 60;
+        return new Date(guess.getTime() + diffMin * 60000);
+      }
+
+      function ymd(date, tz) {
+        return new Intl.DateTimeFormat('en-CA', {
+          timeZone: tz,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(date);
+      }
+      function hm(date, tz) {
+        return new Intl.DateTimeFormat('en-GB', {
+          timeZone: tz,
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }).format(date);
+      }
+
+      let powerInput, anchorInput, timeInput;
+      let mode = 'live'; // 'live' | 'anchored'
+      let frozen = null; // { h, m, zone }
+      let lastError = null;
+
+      function buildControlsDesktop() {
+        controlsEl.innerHTML = '';
+        powerInput = document.createElement('input');
+        powerInput.type = 'text';
+        powerInput.className = 'field';
+        powerInput.id = 'power';
+        powerInput.placeholder =
+          '3pm NYC   ·   14:30 Tokyo   ·   9am Copenhagen';
+        controlsEl.appendChild(powerInput);
+
+        powerInput.addEventListener('input', () => {
+          const v = powerInput.value;
+          if (!v.trim() || v.trim().toLowerCase() === 'now') {
+            mode = 'live';
+            frozen = null;
+            lastError = null;
+            startLive();
+            render();
+            return;
+          }
+          const r = parsePower(v);
+          if (r.error) {
+            lastError = r.error;
+            render();
+            return;
+          }
+          if (r.live) {
+            mode = 'live';
+            frozen = null;
+            lastError = null;
+            startLive();
+            render();
+            return;
+          }
+          lastError = null;
+          mode = 'anchored';
+          frozen = { h: r.h, m: r.m, zone: r.zone };
+          stopLive();
+          render();
+        });
+      }
+
+      function buildControlsMobile() {
+        controlsEl.innerHTML = '';
+        timeInput = document.createElement('input');
+        timeInput.type = 'time';
+        timeInput.className = 'field';
+        controlsEl.appendChild(timeInput);
+
+        anchorInput = document.createElement('input');
+        anchorInput.type = 'text';
+        anchorInput.className = 'field';
+        anchorInput.id = 'anchor';
+        anchorInput.setAttribute('list', 'tz-list');
+        anchorInput.value = anchor;
+        controlsEl.appendChild(anchorInput);
+
+        timeInput.addEventListener('input', () => {
+          if (!timeInput.value) {
+            mode = 'live';
+            frozen = null;
+            startLive();
+            render();
+            return;
+          }
+          const [h, m] = timeInput.value.split(':').map(Number);
+          mode = 'anchored';
+          frozen = { h, m, zone: anchor };
+          stopLive();
+          render();
+        });
+        anchorInput.addEventListener('change', () => {
+          const v = anchorInput.value.trim();
+          if (allZones.includes(v)) {
+            anchor = v;
+            localStorage.setItem(ANCHOR_KEY, anchor);
+            if (frozen) frozen.zone = anchor;
+          } else {
+            anchorInput.value = anchor;
+          }
+          render();
+        });
+      }
+
+      function renderTabs() {
+        tabsEl.innerHTML = '';
+        for (const tz of list) {
+          const chip = document.createElement('span');
+          chip.className = 'tab' + (tz === home ? ' home' : '');
+          chip.innerHTML = `<span>${label(tz)}</span>`;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = '×';
+          btn.title = 'Remove';
+          btn.addEventListener('click', () => {
+            list = list.filter((z) => z !== tz);
+            saveList();
+            renderAll();
+          });
+          chip.appendChild(btn);
+          tabsEl.appendChild(chip);
+        }
+
+        const add = document.createElement('span');
+        add.className = 'tab-add';
+        const addInput = document.createElement('input');
+        addInput.type = 'text';
+        addInput.placeholder = '+ Add timezone';
+        addInput.setAttribute('list', 'tz-list');
+        addInput.addEventListener('change', () => {
+          const v = addInput.value.trim();
+          if (!v || !allZones.includes(v) || list.includes(v)) {
+            addInput.value = '';
+            return;
+          }
+          list.push(v);
+          saveList();
+          renderAll();
+        });
+        add.appendChild(addInput);
+        tabsEl.appendChild(add);
+      }
+
+      function renderRows() {
+        zonesEl.innerHTML = '';
+        for (const tz of list) {
+          const row = document.createElement('div');
+          row.className = 'zone' + (tz === home ? ' home' : '');
+          row.innerHTML = `
+            <span class="name">${label(tz)}</span>
+            <span class="time" data-tz="${tz}"></span>
+            <span class="offset" data-tz="${tz}"></span>
+          `;
+          zonesEl.appendChild(row);
+        }
+      }
+
+      function renderAll() {
+        renderTabs();
+        renderRows();
+        render();
+      }
+
+      function targetDate() {
+        if (mode === 'live' || !frozen) return new Date();
+        return wallToDate(frozen.h, frozen.m, frozen.zone);
+      }
+
+      function render() {
+        const d = targetDate();
+        const refZone = frozen ? frozen.zone : home;
+        const refYmd = ymd(d, refZone);
+
+        for (const tz of list) {
+          const tEl = zonesEl.querySelector(`.time[data-tz="${tz}"]`);
+          const oEl = zonesEl.querySelector(`.offset[data-tz="${tz}"]`);
+          if (!tEl) continue;
+          tEl.textContent = hm(d, tz);
+          const diff = (new Date(ymd(d, tz)) - new Date(refYmd)) / 86400000;
+          if (diff === 0) {
+            oEl.textContent = '';
+            oEl.classList.remove('shift');
+          } else {
+            oEl.textContent = diff > 0 ? `+${diff}d` : `${diff}d`;
+            oEl.classList.add('shift');
+          }
+        }
+
+        statusEl.classList.remove('live', 'error');
+        if (lastError) {
+          statusEl.textContent = lastError;
+          statusEl.classList.add('error');
+        } else if (mode === 'live') {
+          statusEl.textContent = '- live -';
+          statusEl.classList.add('live');
+        } else if (frozen) {
+          const fh = String(frozen.h).padStart(2, '0');
+          const fm = String(frozen.m).padStart(2, '0');
+          statusEl.textContent = `anchored at ${fh}:${fm} ${label(frozen.zone)}`;
+        }
+      }
+
+      let timer = null;
+      function startLive() {
+        stopLive();
+        timer = setInterval(render, 1000);
+      }
+      function stopLive() {
+        if (timer) clearInterval(timer);
+        timer = null;
+      }
+
+      if (isMobile) buildControlsMobile();
+      else buildControlsDesktop();
+
+      renderAll();
+      startLive();
+    </script>
   </body>
 </html>

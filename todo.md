@@ -3,6 +3,7 @@
 ## Improvements
 
 - Support pasting images and videos from clipboard into upload areas
+- Add Timeline offset graph it timzones page
 
 ## New Tools
 
