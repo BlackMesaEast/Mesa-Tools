@@ -21,3 +21,4 @@
 ### Misc
 
 - QR code creator
+- Color pallete generator
