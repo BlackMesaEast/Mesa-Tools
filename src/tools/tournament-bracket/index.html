@@ -1,56 +1,228 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tournament Bracket — Mesa Tools</title>
-    <link rel="stylesheet" href="../../styles.css" />
-    <style>
-        /* This is the magic for mixing HTML and p5 */
-    #bracket-canvas-container {
-      position: relative;
-      margin-top: 20px;
-      border: 2px solid #080072;
-      background: #000000;      
-      min-height: 400px;         
-      width: 800px;              
-    }
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Tournament Bracket — Mesa Tools</title>
+      <link rel="stylesheet" href="../../styles.css" />
+      <style>
+      #bracket-canvas-container {
+        position: relative;
+        margin-top: 20px;
+        border: 2px solid #080072;
+        background: #000000;      
+        min-height: 400px;         
+        width: 796px;              
+      }
 
-    button
-    {
-      background-color: white;
-      border: 3px solid #080072; 
-      border-radius: 10px;
-      padding: 1px 6px;
-      font-family: inherit;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    </style>
-</head>
-<body>
-    <nav>
-        <a class="logo" href="/">Mesa Tools</a>
-    </nav>
+      button
+      {
+        background-color: white;
+        border: 3px solid #080072; 
+        border-radius: 10px;
+        padding: 1px 6px;
+        font-family: inherit;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      </style>
+  </head>
+  <body>
+      <nav>
+          <a class="logo" href="/">Mesa Tools</a>
+      </nav>
 
-    <main>
-        <div class="tool-header">
-            <a href="/">← Back to tools</a>
-            <h1>Tournament Bracket</h1>
-        </div>
+      <main>
+          <div class="tool-header">
+              <a href="/">← Back to tools</a>
+              <h1>Tournament Bracket</h1>
+          </div>
 
-        <div class="tool-body">
-            <div id="controls">
-                <button onclick="addTeam()">Add Team</button>
-                <button onclick="resetBracket()">Reset</button>
-                <button onclick="goy()">Bracket </button>
+          <div class="tool-body">
+             <div id="controls">
+                <button onclick="handleAddTeams()">Create Bracket</button>
+                <input type="number" id="teamInput" placeholder="How many teams?">
+                <!-- This is where the editable names will appear -->
+                <div id="teamList" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px;"></div>
             </div>
-
             <div id="bracket-canvas-container"></div>
-        </div>
-    </main>
+          </div>
+      </main>
 
-    <script src="../../libs/p5.min.js"></script>
-    <script src="sketch.js"></script>
-</body>
-</html>
+<script src="../../libs/p5.min.js"></script>
+  <script>
+let matches = [];
+
+function setup() {
+  let canvas = createCanvas(796, 600);
+  canvas.parent('bracket-canvas-container');
+  textAlign(CENTER, CENTER);
+}
+
+function draw() {
+  background(0);
+  for (let match of matches) {
+    match.display();
+  }
+}
+
+function handleAddTeams() {
+  const input = document.getElementById("teamInput");
+  const listDiv = document.getElementById("teamList");
+  const num = parseInt(input.value, 10);
+  let isPowerOfTwo = Math.log2(num) % 1 === 0;
+
+  if (isNaN(num) || num < 4 || !isPowerOfTwo) {
+    alert("Please enter 4, 8, 16, or 32.");
+    return;
+  }
+
+  // 1. Clear old data
+  matches = [];
+  listDiv.innerHTML = ""; 
+
+  // 2. Setup Dimensions
+  let margin = 50;
+  let matchGap = 40;
+  let horizontalSpacing = 220;
+  let numMatches = num / 2;
+  let boxH = 30;
+
+  let requiredHeight = Math.max(600, (numMatches * (boxH * 2)) + (margin * 2) + (numMatches * matchGap));
+  resizeCanvas(850, requiredHeight);
+
+  let spacePerMatch = (height - (margin * 2) - ((numMatches - 1) * matchGap)) / numMatches;
+
+  // 3. Create Inputs & Round 1 Matches
+  let previousRoundMatches = [];
+  for (let i = 0; i < numMatches; i++) {
+    let y = margin + (i * spacePerMatch) + (spacePerMatch / 2) + (i * matchGap);
+    
+    // Create actual HTML inputs for Round 1
+    createTeamInput(i * 2 + 1);
+    createTeamInput(i * 2 + 2);
+
+    let m = new Match("Team " + (i * 2 + 1), "Team " + (i * 2 + 2), 50, y, boxH);
+    matches.push(m);
+    previousRoundMatches.push(m);
+  }
+
+  // 4. Build Subsequent Rounds
+  let totalExtraCols = Math.log2(num) - 1;
+  for (let r = 1; r <= totalExtraCols; r++) {
+    let currentRoundMatches = [];
+    for (let i = 0; i < previousRoundMatches.length; i += 2) {
+      let m1 = previousRoundMatches[i];
+      let m2 = previousRoundMatches[i + 1];
+      let newM = new Match("", "", m1.x + horizontalSpacing, (m1.y + m2.y) / 2, boxH);
+      m1.nextMatch = { target: newM, slot: 1 };
+      m2.nextMatch = { target: newM, slot: 2 };
+      matches.push(newM);
+      currentRoundMatches.push(newM);
+    }
+    previousRoundMatches = currentRoundMatches;
+  }
+}
+
+// Helper to create the sidebar inputs
+function createTeamInput(id) {
+  let inp = document.createElement("input");
+  inp.type = "text";
+  inp.value = "Team " + id;
+  inp.style.width = "80px";
+  inp.dataset.id = id;
+  // This updates the bracket immediately when you type
+  inp.oninput = function() {
+    updateBracketNames();
+  };
+  document.getElementById("teamList").appendChild(inp);
+}
+
+function updateBracketNames() {
+  let inputs = document.querySelectorAll("#teamList input");
+  // Update Round 1 matches based on sidebar inputs
+  for (let i = 0; i < inputs.length / 2; i++) {
+    matches[i].t1 = inputs[i * 2].value;
+    matches[i].t2 = inputs[i * 2 + 1].value;
+  }
+}
+
+function mousePressed() {
+  for (let match of matches) {
+    let area = match.getClickedArea(mouseX, mouseY);
+    if (area === "w1") match.advance(1);
+    if (area === "w2") match.advance(2);
+    // Score editing still uses simple prompt for speed, but names are in the sidebar
+    if (area === "s1") match.s1 = prompt("Score:", match.s1) || match.s1;
+    if (area === "s2") match.s2 = prompt("Score:", match.s2) || match.s2;
+  }
+}
+
+class Match {
+  constructor(t1, t2, x, y, boxH) {
+    this.t1 = t1; this.t2 = t2;
+    this.s1 = "0"; this.s2 = "0";
+    this.win1 = false; this.win2 = false;
+    this.x = x; this.y = y;
+    this.boxH = boxH; this.w = 180;
+    this.nextMatch = null;
+  }
+
+  getClickedArea(mx, my) {
+    if (mx < this.x || mx > this.x + this.w) return null;
+    let isTop = my > this.y - this.boxH && my < this.y;
+    let isBottom = my > this.y && my < this.y + this.boxH;
+    let relX = mx - this.x;
+    if (isTop || isBottom) {
+      let suffix = isTop ? "1" : "2";
+      if (relX < 30) return "w" + suffix; 
+      if (relX > 140) return "s" + suffix;
+    }
+    return null;
+  }
+
+  advance(slot) {
+    if (slot === 1) { this.win1 = !this.win1; this.win2 = false; }
+    else { this.win2 = !this.win2; this.win1 = false; }
+
+    if (this.nextMatch) {
+      let winnerName = (slot === 1 && this.win1) ? this.t1 : (slot === 2 && this.win2) ? this.t2 : "";
+      if (this.nextMatch.slot === 1) this.nextMatch.target.t1 = winnerName;
+      else this.nextMatch.target.t2 = winnerName;
+    }
+  }
+
+  display() {
+    // Draw Lines
+    if (this.nextMatch) {
+      stroke(150); strokeWeight(2); noFill();
+      let startX = this.x + this.w, startY = this.y;
+      let target = this.nextMatch.target;
+      let endX = target.x;
+      let endY = this.nextMatch.slot === 1 ? target.y - this.boxH/2 : target.y + this.boxH/2;
+      let midX = startX + (endX - startX) / 2;
+      line(startX, startY, midX, startY); line(midX, startY, midX, endY); line(midX, endY, endX, endY);
+    }
+    this.drawHalf(this.y - this.boxH, this.t1, this.s1, this.win1, true);
+    this.drawHalf(this.y, this.t2, this.s2, this.win2, false);
+  }
+
+  drawHalf(y, name, score, won, isTop) {
+    stroke(8, 0, 114); strokeWeight(2);
+    fill(won ? color(200, 255, 200) : 255);
+    rect(this.x, y, this.w, this.boxH, isTop ? 5 : 0, isTop ? 5 : 0, isTop ? 0 : 5, isTop ? 0 : 5);
+    
+    // Checkbox Circle
+    stroke(8, 0, 114); fill(won ? 8 : 245);
+    ellipse(this.x + 15, y + this.boxH/2, 12);
+
+    // Names & Scores
+    fill(0); noStroke(); textAlign(LEFT, CENTER); textSize(12);
+    text(name, this.x + 30, y + this.boxH / 2);
+    textAlign(CENTER, CENTER);
+    text(score, this.x + this.w - 20, y + this.boxH / 2);
+  }
+}
+</script>
+  </body>
+  </html>
