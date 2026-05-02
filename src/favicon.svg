@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -6 102 92" role="img" aria-label="Mesa Tools logo">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a85c43"/>
+      <stop offset="100%" stop-color="#6e3a28"/>
+    </linearGradient>
+    <linearGradient id="shadow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4a2819"/>
+      <stop offset="100%" stop-color="#2a140d"/>
+    </linearGradient>
+    <clipPath id="silhouette">
+      <polygon points="0,80 50,0 90,80"/>
+    </clipPath>
+  </defs>
+  <polygon points="0,80 50,0 90,80" fill="url(#face)"/>
+  <polygon points="50,0 90,80 65,80" fill="url(#shadow)"/>
+  <g fill="none" stroke-width="1.6" stroke-linejoin="miter" clip-path="url(#silhouette)">
+    <path d="M 0 80 L 50 0" stroke="#c07255" opacity="0.75"/>
+    <path d="M 0 80 L 90 80" stroke="#1a0a05" opacity="0.55"/>
+  </g>
+</svg>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Media Format Converter — Mesa Tools</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="alternate icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <nav>
+      <a class="logo" href="/">Mesa Tools</a>
+    </nav>
+    <main>
+      <div class="tool-header">
+        <a href="/">← Back to tools</a>
+        <h1>Media Format Converter</h1>
+        <p>Convert images, videos, and audio files between formats.</p>
+      </div>
+      <div class="tool-body">
+        <label class="upload-area" id="upload-area">
+          <input
+            type="file"
+            hidden
+            accept="image/*,video/*,audio/*"
+            id="mediafile"
+          />
+          <img id="preview" src="" alt="" hidden style="max-height:120px;max-width:200px;border-radius:6px;" />
+          <p id="upload-text">Click or drag an image, video, or audio file here</p>
+          <p id="file-name" hidden></p>
+        </label>
+        <span class="convert-label" id="convert-label" hidden>Convert to</span>
+        <select name="Formats" id="Formats" hidden></select>
+        <div class="convert-actions" id="convert-actions" hidden>
+          <button class="btn-convert" id="convertBtn" onclick="convert()">
+            Convert
+          </button>
+        </div>
+        <div class="progress-wrap" id="progress-wrap" hidden>
+          <div class="progress-meta">
+            <span id="progress-label"></span>
+            <span id="progress-eta"></span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-bar"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script src="/libs/ffmpeg/ffmpeg.js"></script>
+    <script src="/tools/media-format-converter/script.js"></script>
+  </body>
+</html>

@@ -50,6 +50,10 @@
   padding: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 :root {
   --bg: #0f0f0f;
   --surface: #1a1a1a;
@@ -311,4 +315,26 @@ select:focus {
   width: 0%;
   background: var(--accent);
   transition: width 0.2s;
+}
+
+.btn-copy {
+  padding: 0.4rem 0.5rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn-copy:active {
+  padding: 0.4rem 0.5rem;
+  background: var(--border);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
 }
